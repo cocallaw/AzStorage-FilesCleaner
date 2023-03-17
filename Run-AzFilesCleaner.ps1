@@ -1,5 +1,5 @@
 #region variables
-
+$_csvfilepath = ""
 #endregion
 
 #region functions
@@ -45,7 +45,7 @@ function Get-CSVlist {
         [parameter (Mandatory = $true)]
         [string]$csvfilepath
     )
-    $csv = Import-Csv -Path $csvfilepath -Header uid
+    $csv = Get-Content -Path $csvfilepath | Select-Object -Skip 1 | ConvertFrom-Csv -Header matchvalue,directory,sharename,storageacct,resourcegroup
     Write-Host $csv.count"Items were imported from the CSV file provided"  -BackgroundColor Black -ForegroundColor Green
     return $csv 
 }
@@ -72,7 +72,7 @@ function Get-ShareMatches {
     [CmdletBinding()]
     param (
         [parameter (Mandatory = $true)]
-        [array]$names,
+        [psobject]$names,
         [parameter (Mandatory = $true)]
         [string]$share,
         [parameter (Mandatory = $true)]
@@ -98,6 +98,28 @@ function Get-ShareMatches {
     }
     return $ArrayList
 }
+function Get-MatchedCSVList {
+    param (
+        [parameter (Mandatory = $true)]
+        [psobject]$csv,
+        [parameter (Mandatory = $true)]
+        [psobject]$uss
+    )
+    foreach ($u in $uss) {
+        $matched = Get-ShareMatches -names $csv -share $u.ShareName -stgcontext $u.Context
+        foreach ($m in $matched) {
+            foreach ($c in $csv) {
+                if ($c.matchvalue -eq $m.id) {
+                    $c.directory = $m.dir
+                    $c.sharename = $u.ShareName
+                    $c.storageacct = $u.StorageAccountName
+                    $c.resourcegroup = $u.ResrouceGroupName
+                }
+            }
+        }
+    }
+    return $csv
+}
 
 function Invoke-Option {
     param (
@@ -117,25 +139,20 @@ function Invoke-Option {
         Write-Host "Starting the process to identify the files to remove from the Azure Files Share"
         Write-Host "Please select the CSV file that contains the list of names to perform matching against"
         $csvfilepath = Get-CSVlistpath
+        $Global:_csvfilepath = $csvfilepath
         $csv = Get-CSVlist -csvfilepath $csvfilepath
         $stgacctwshare = Get-AzStgAcctWithShare
         Write-Host "Please select the Azure Files Share you would like to perform the matching against"
         $uss = $stgacctwshare | ogv -Title "Select Azure File Share" -PassThru
-        foreach ($u in $uss) {
-            $matched = Get-ShareMatches -names $csv -share $u.ShareName -stgcontext $u.Context
-            foreach ($m in $matched) {
-                $csv | where { $_.matchvalue -eq $m.id } | add-member -name "directory" -value $m.dir -MemberType NoteProperty
-                $csv | where { $_.matchvalue -eq $m.id } | add-member -name "sharename" -value $u.ShareName -MemberType NoteProperty
-                $csv | where { $_.matchvalue -eq $m.id } | add-member -name "storageaccountname" -value $u.StorageAccountName -MemberType NoteProperty
-                $csv | where { $_.matchvalue -eq $m.id } | add-member -name "resourcegroupname" -value $u.ResrouceGroupName -MemberType NoteProperty
-            }
-        }
+        $mcsv = Get-MatchedCSVList -uss $uss -csv $csv
+        $mcsv | Export-Csv -Path $Global:_csvfilepath -NoTypeInformation
     }
     elseif ($userSelection -eq "3") {
         #3 - Remove Files from Azure Files Share"
         Write-Host "Starting the process to identify the files to remove from the Azure Files Share"
         Write-Host "Please select the CSV file that contains the list of names to perform removal against"
         $csvfilepath = Get-CSVlistpath
+        $Global:_csvfilepath = $csvfilepath
         $csv = Get-CSVlist -csvfilepath $csvfilepath
         $stgacctnames = $csv | select storageaccountname | sort storageaccountname | group storageaccountname | select name
     }
