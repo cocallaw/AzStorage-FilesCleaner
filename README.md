@@ -17,4 +17,4 @@ or the shorthand version
 
 To download a local copy of the latest version of the script run the command below -
 
- `Invoke-WebRequest -Uri aka.ms/azfilescleanerps -OutFile Run-AzFilesMigrator.ps1`
+ `Invoke-WebRequest -Uri aka.ms/azfilescleanerps -OutFile Run-AzFilesCleaner.ps1`
