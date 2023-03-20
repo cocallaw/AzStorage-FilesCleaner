@@ -45,7 +45,7 @@ function Get-CSVlist {
         [parameter (Mandatory = $true)]
         [string]$csvfilepath
     )
-    $csv = Get-Content -Path $csvfilepath | Select-Object -Skip 1 | ConvertFrom-Csv -Header matchvalue,directory,sharename,storageacct,resourcegroup
+    $csv = Get-Content -Path $csvfilepath | Select-Object -Skip 1 | ConvertFrom-Csv -Header matchvalue, directory, sharename, storageacct, resourcegroup
     Write-Host $csv.count"Items were imported from the CSV file provided"  -BackgroundColor Black -ForegroundColor Green
     return $csv 
 }
@@ -120,7 +120,23 @@ function Get-MatchedCSVList {
     }
     return $csv
 }
-
+function Get-StorageContextList {
+    param (
+        [parameter (Mandatory = $true)]
+        [psobject]$csv
+    )
+    $stgcontextlist = @()
+    $fcsv = $csv | select storageacct, resourcegroup | sort storageacct | group storageacct
+    foreach ($f in $fcsv) {
+        $stgcontext = (Get-AzStorageAccount -ResourceGroupName $f.group[0].resourcegroup -AccountName $f.name).Context
+        $PSO = New-Object PSObject -Property @{
+            StorageAccountName = $f.name
+            Context            = $stgcontext
+        }
+        $stgcontextlist += $PSO
+    }
+    return $stgcontextlist
+}
 function Invoke-Option {
     param (
         [parameter (Mandatory = $true)]
@@ -146,6 +162,7 @@ function Invoke-Option {
         $uss = $stgacctwshare | ogv -Title "Select Azure File Share" -PassThru
         $mcsv = Get-MatchedCSVList -uss $uss -csv $csv
         $mcsv | Export-Csv -Path $Global:_csvfilepath -NoTypeInformation
+        Invoke-Option -userSelection (Get-Option)
     }
     elseif ($userSelection -eq "3") {
         #3 - Remove Files from Azure Files Share"
@@ -154,7 +171,19 @@ function Invoke-Option {
         $csvfilepath = Get-CSVlistpath
         $Global:_csvfilepath = $csvfilepath
         $csv = Get-CSVlist -csvfilepath $csvfilepath
-        $stgacctnames = $csv | select storageaccountname | sort storageaccountname | group storageaccountname | select name
+        $stgcntxt = Get-StorageContextList -csv $csv
+        foreach ($c in $csv) {
+            $stgcontext = $stgcntxt | where { $_.StorageAccountName -eq $c.storageacct }
+            $stgcontext = $stgcontext.Context
+            Write-Host "Removing files from Directory" $c.directory "in" $c.storageacct
+            $t = Get-AzStorageFile -Context $stgcontext -ShareName $c.sharename -Path $c.directory | Get-AzStorageFile 
+            if ($t.count -gt 0) {
+                Get-AzStorageFile -Context $stgcontext -ShareName $c.sharename -Path $c.directory | Get-AzStorageFile | Remove-AzStorageFile 
+            }
+            Write-Host "Removing the directory" $c.directory "from" $c.sharename "in" $c.storageacct
+            Remove-AzStorageDirectory -Context $stgcontext -ShareName $c.sharename -Path $c.directory
+        }
+        Invoke-Option -userSelection (Get-Option)
     }
     elseif ($userSelection -eq "8") {
         #8 -Exit
