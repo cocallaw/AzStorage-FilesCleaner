@@ -1,7 +1,6 @@
 #region variables
 $_csvfilepath = ""
 #endregion
-
 #region functions
 function Get-Option {
     Write-Host "What would you like to do?"
@@ -210,8 +209,8 @@ function Invoke-Option {
     }
     elseif ($userSelection -eq "3") {
         #3 - Remove Files from Azure Files Share"
-        Write-Host "Starting the process to identify the files to remove from the Azure Files Share"
-        Write-Host "Please select the CSV file that contains the list of names to perform removal against"
+        Write-Host "Starting the process to identify the files to remove from the Azure Files Share" -ForegroundColor Green
+        Write-Host "Please select the CSV file that contains the list of names to perform removal against" -ForegroundColor Yellow
         $csvfilepath = Get-CSVlistpath
         $Global:_csvfilepath = $csvfilepath
         $csv = Get-CSVlist -csvfilepath $csvfilepath
@@ -220,23 +219,22 @@ function Invoke-Option {
         Invoke-Option -userSelection (Get-Option)
     }
     elseif ($userSelection -eq "8") {
-        #8 -Exit
+        #8 - Exit
         break
     }
     else {
-        Write-Host "You have selected an invalid option please select again." -ForegroundColor Red -BackgroundColor Black
+        Write-Host "You have selected an invalid option please select again." -ForegroundColor Red
         Invoke-Option -userSelection (Get-Option)
     }
 }
 #endregion
-
 #region main
 Write-Host "Welcome to the Azure Files Cleaner Script"
 try {
     Invoke-Option -userSelection (Get-Option)
 }
 catch {
-    Write-Host "Something went wrong" -ForegroundColor Yellow -BackgroundColor Black
+    Write-Host "Something went wrong" -ForegroundColor Yellow
     Invoke-Option -userSelection (Get-Option)
 }
 #endregion
