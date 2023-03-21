@@ -126,6 +126,11 @@ function Get-StorageContextList {
         [psobject]$csv
     )
     $stgcontextlist = @()
+    foreach ($c in $csv){
+        if ($c.storageacct -eq $null -or $c.resourcegroup -eq $null) {
+            $csv = $csv | where { $_.matchvalue -ne $c.matchvalue }
+        }
+    }
     $fcsv = $csv | select storageacct, resourcegroup | sort storageacct | group storageacct
     foreach ($f in $fcsv) {
         $stgcontext = (Get-AzStorageAccount -ResourceGroupName $f.group[0].resourcegroup -AccountName $f.name).Context
