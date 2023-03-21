@@ -137,6 +137,45 @@ function Get-StorageContextList {
     }
     return $stgcontextlist
 }
+function Start-AzFileRemoval {
+    param (
+        [parameter (Mandatory = $true)]
+        [psobject]$csv,
+        [parameter (Mandatory = $true)]
+        [psobject]$stgcntxt
+    )
+    $rnd = Get-Random -Minimum 100 -Maximum 999 
+    $r = Read-Host "Please type in $rnd to confirm and start deletion or type stop to cancel"
+    if ($r.trim() -eq $rnd) {
+        write-host "Deletion confirmed starting in 5 seconds" -ForegroundColor Green
+        Start-Sleep -Seconds 5
+        Write-Host "Starting Deletion" -ForegroundColor Yellow
+        foreach ($c in $csv) {
+            if ($c.directory -eq $null -or $c.sharename -eq $null -or $c.storageacct -eq $null -or $c.resourcegroup -eq $null) {
+                Write-Host "Skipping" $c.matchvalue "as it has not been properly matched" -ForegroundColor Yellow
+            }
+            else {
+                $stgcontext = $stgcntxt | where { $_.StorageAccountName -eq $c.storageacct }
+                $stgcontext = $stgcontext.Context
+                Write-Host "Removing files from Directory" $c.directory "in" $c.storageacct
+                $t = Get-AzStorageFile -Context $stgcontext -ShareName $c.sharename -Path $c.directory | Get-AzStorageFile 
+                if ($t.count -gt 0) {
+                    Get-AzStorageFile -Context $stgcontext -ShareName $c.sharename -Path $c.directory | Get-AzStorageFile | Remove-AzStorageFile 
+                }
+                Write-Host "Removing the directory" $c.directory "from" $c.sharename "in" $c.storageacct
+                Remove-AzStorageDirectory -Context $stgcontext -ShareName $c.sharename -Path $c.directory
+            }
+        }
+    }
+    elseif ($r.trim().ToLower() -eq "stop") {
+        Write-Host "Machine reset aborted" -ForegroundColor Red
+        exit
+    }
+    else {
+        Write-Host "Unknown input please try again" -ForegroundColor Red
+        Invoke-Option -userSelection (Get-Option)
+    }
+}
 function Invoke-Option {
     param (
         [parameter (Mandatory = $true)]
@@ -172,17 +211,7 @@ function Invoke-Option {
         $Global:_csvfilepath = $csvfilepath
         $csv = Get-CSVlist -csvfilepath $csvfilepath
         $stgcntxt = Get-StorageContextList -csv $csv
-        foreach ($c in $csv) {
-            $stgcontext = $stgcntxt | where { $_.StorageAccountName -eq $c.storageacct }
-            $stgcontext = $stgcontext.Context
-            Write-Host "Removing files from Directory" $c.directory "in" $c.storageacct
-            $t = Get-AzStorageFile -Context $stgcontext -ShareName $c.sharename -Path $c.directory | Get-AzStorageFile 
-            if ($t.count -gt 0) {
-                Get-AzStorageFile -Context $stgcontext -ShareName $c.sharename -Path $c.directory | Get-AzStorageFile | Remove-AzStorageFile 
-            }
-            Write-Host "Removing the directory" $c.directory "from" $c.sharename "in" $c.storageacct
-            Remove-AzStorageDirectory -Context $stgcontext -ShareName $c.sharename -Path $c.directory
-        }
+        Start-AzFileRemoval -csv $csv -stgcntxt $stgcntxt
         Invoke-Option -userSelection (Get-Option)
     }
     elseif ($userSelection -eq "8") {
