@@ -51,23 +51,18 @@ function Get-CSVlist {
 function Get-AzStgAcctWithShare {
     $stgacctfltr = @()
     Write-Host "Getting list of available storage accounts" -BackgroundColor Black -ForegroundColor Green
-    $stgaccts = Get-AzStorageAccount
+    $stgaccts = Get-AzStorageAccount | where { $_.Kind -like "StorageV2" }
     Write-Host $stgaccts.count"Storage Accounts were found"  -BackgroundColor Black -ForegroundColor Green
     foreach ($stg in $stgaccts) {
         $sh = $stg | Get-AzRMStorageShare
-        try {
-            if ($sh.count -gt 0) {
-                $PSO = New-Object PSObject -Property @{
-                    StorageAccountName = $stg.StorageAccountName
-                    ResrouceGroupName  = $stg.ResourceGroupName
-                    ShareName          = $sh.Name
-                    Context            = $stg.Context
-                }
-                $stgacctfltr += $PSO
+        if ($sh.count -gt 0) {
+            $PSO = New-Object PSObject -Property @{
+                StorageAccountName = $stg.StorageAccountName
+                ResrouceGroupName  = $stg.ResourceGroupName
+                ShareName          = $sh.Name
+                Context            = $stg.Context
             }
-        }
-        catch {
-            Write-Host "No shares were found in" $stg.StorageAccountName -BackgroundColor Black -ForegroundColor Red
+            $stgacctfltr += $PSO
         }
     }
     return $stgacctfltr
@@ -130,7 +125,7 @@ function Get-StorageContextList {
         [psobject]$csv
     )
     $stgcontextlist = @()
-    foreach ($c in $csv){
+    foreach ($c in $csv) {
         if ($c.storageacct -eq $null -or $c.resourcegroup -eq $null) {
             $csv = $csv | where { $_.matchvalue -ne $c.matchvalue }
         }
