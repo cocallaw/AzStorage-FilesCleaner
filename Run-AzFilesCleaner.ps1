@@ -105,14 +105,16 @@ function Get-MatchedCSVList {
         [psobject]$uss
     )
     foreach ($u in $uss) {
-        $matched = Get-ShareMatches -names $csv -share $u.ShareName -stgcontext $u.Context
-        foreach ($m in $matched) {
-            foreach ($c in $csv) {
-                if ($c.matchvalue -eq $m.id) {
-                    $c.directory = $m.dir
-                    $c.sharename = $u.ShareName
-                    $c.storageacct = $u.StorageAccountName
-                    $c.resourcegroup = $u.ResrouceGroupName
+        foreach ($shname in $u.sharename) {
+            $matched = Get-ShareMatches -names $csv -share $shname -stgcontext $u.Context
+            foreach ($m in $matched) {
+                foreach ($c in $csv) {
+                    if ($c.matchvalue -eq $m.id) {
+                        $c.directory = $m.dir
+                        $c.sharename = $u.ShareName
+                        $c.storageacct = $u.StorageAccountName
+                        $c.resourcegroup = $u.ResrouceGroupName
+                    }
                 }
             }
         }
