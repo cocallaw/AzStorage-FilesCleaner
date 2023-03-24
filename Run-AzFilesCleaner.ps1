@@ -55,14 +55,19 @@ function Get-AzStgAcctWithShare {
     Write-Host $stgaccts.count"Storage Accounts were found"  -BackgroundColor Black -ForegroundColor Green
     foreach ($stg in $stgaccts) {
         $sh = $stg | Get-AzRMStorageShare
-        if ($sh.count -gt 0) {
-            $PSO = New-Object PSObject -Property @{
-                StorageAccountName = $stg.StorageAccountName
-                ResrouceGroupName  = $stg.ResourceGroupName
-                ShareName          = $sh.Name
-                Context            = $stg.Context
+        try {
+            if ($sh.count -gt 0) {
+                $PSO = New-Object PSObject -Property @{
+                    StorageAccountName = $stg.StorageAccountName
+                    ResrouceGroupName  = $stg.ResourceGroupName
+                    ShareName          = $sh.Name
+                    Context            = $stg.Context
+                }
+                $stgacctfltr += $PSO
             }
-            $stgacctfltr += $PSO
+        }
+        catch {
+            Write-Host "No shares were found in" $stg.StorageAccountName -BackgroundColor Black -ForegroundColor Red
         }
     }
     return $stgacctfltr
