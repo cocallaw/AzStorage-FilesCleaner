@@ -111,7 +111,7 @@ function Get-MatchedCSVList {
                 foreach ($c in $csv) {
                     if ($c.matchvalue -eq $m.id) {
                         $c.directory = $m.dir
-                        $c.sharename = $u.ShareName
+                        $c.sharename = $shname
                         $c.storageacct = $u.StorageAccountName
                         $c.resourcegroup = $u.ResrouceGroupName
                     }
